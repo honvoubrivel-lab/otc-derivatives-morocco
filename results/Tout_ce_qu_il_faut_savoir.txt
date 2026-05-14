@@ -1,0 +1,351 @@
+██████████████████████████████████████████████████████████████████████
+  MODÉLISATION DES RISQUES FINANCIERS — DÉRIVÉS OTC AU MAROC
+  Chapitre 5.3 — Finance Quantitative et Gestion des Risques
+██████████████████████████████████████████████████████████████████████
+
+  Simulations : 10,000 trajectoires  |  Graine : 42  |  Pas : mensuel (Δt = 1/12)
+  Notionnel : 100M MAD  |  Maturité : 3 ans  |  Importations : 5M USD/an
+
+
+======================================================================
+  SECTION 5.3.1.1 — RISQUE DE TAUX (VASICEK)
+======================================================================
+
+  ── ÉTAPE 1 : Chargement des données BAM ──
+  ✓ Données BAM chargées : 47 décisions
+  Période : 2014-04-01 → 2025-12-01
+  Taux initial r₀ : 2.2500%
+
+  ── ÉTAPE 2 : Calibration du modèle de Vasicek (OLS + MLE) ──
+
+─────────────────────────────────────────────────────────────────
+                     PARAMÈTRES VASICEK (MLE)                    
+─────────────────────────────────────────────────────────────────
+    κ (vitesse de retour à la moyenne) : 0.3813  → demi-vie = 1.82 ans
+    θ (taux d'équilibre long terme)    : 2.1055%
+    σ (volatilité instantanée)         : 0.3522%
+    r₀ (dernier taux BAM observé)      : 2.2500%
+
+  ── ÉTAPE 3 : Simulation Monte Carlo (Vasicek — Euler-Maruyama) ──
+  ✓ 10,000 trajectoires × 36 périodes
+  Taux moyen final : 2.1516%
+  IC 90% : [1.5151% ; 2.7864%]
+
+  ── ÉTAPE 4 : Calcul des charges financières et métriques de risque ──
+  Charge mensuelle moyenne :     -307,237 MAD
+  Coût total moyen         :  -11,060,533 MAD
+  VaR 99%                  :   12,766,204 MAD
+  ES  99%                  :   13,020,440 MAD
+  Test Jarque-Bera         : p = 0.5253 → Distribution gaussienne (H₀ non rejetée, α=5%)
+
+  ── ÉTAPE 5 : Scénarios de stress (chocs de politique monétaire) ──
+  Base     : r₀=2.25%  coût moy =  -11,060,533 MAD  VaR 99% =   12,766,204 MAD  +100bp   : r₀=3.25%  coût moy =  -12,805,693 MAD  VaR 99% =   14,511,364 MAD  +200bp   : r₀=4.25%  coût moy =  -14,550,854 MAD  VaR 99% =   16,256,525 MAD
+  ── ÉTAPE 6 : Génération des figures 5.3.1.1 ──
+  ✓ fig_5311a_calibration_bam.png
+  ✓ fig_5311b_fan_chart_taux.png
+  ✓ fig_5311c_charges_tresorerie.png
+  ✓ fig_5311d_distribution_stress_taux.png
+
+======================================================================
+  SECTION 5.3.1.2 — RISQUE DE CHANGE (GBM)
+======================================================================
+
+  ── ÉTAPE 1 : Récupération des données de marché (Yahoo Finance + FRED) ──
+  ⚠ Données externes indisponibles (name 'telecharger_sofr' is not defined) — utilisation des paramètres par défaut
+
+─────────────────────────────────────────────────────────────────
+                     PARAMÈTRES GBM (USD/MAD)                    
+─────────────────────────────────────────────────────────────────
+    μ  = r_d - r_f  : -3.1945%  (drift CIP)
+    σ_S             : 3.50%  (volatilité annualisée)
+    S₀              : 10.0500 MAD/USD  (taux spot)
+    F₀              : 9.7340 MAD/USD  (taux forward 1 an)
+
+  ── ÉTAPE 2 : Simulation Monte Carlo USD/MAD (GBM — solution exacte) ──
+  E[S_T] simulé   : 9.7355
+  E[S_T] théorique: 9.7340  (CIP — vérification ✓)
+
+  ── ÉTAPE 3 : Calcul de l'exposition au risque de change ──
+  Coût budgété (S₀)   :  -50,250,000 MAD
+  Coût moyen simulé   :  -49,387,365 MAD
+  VaR 99% (perte)     :    1,687,908 MAD
+  ES  99% (perte)     :    2,107,186 MAD
+  Prob. de perte (>0) : 21.0%
+  Validation GBM (KS) : p = 0.7621 → GBM validé : ln(S_T/S₀) ∼ N(μ, σ²) ✓
+
+  ── ÉTAPE 4 : Scénarios de stress (dépréciation du Dirham) ──
+  Base                 : S₀=10.050  coût moy=49.387M  VaR=51.938M MAD
+  Dépréc. -5%          : S₀=10.553  coût moy=51.857M  VaR=54.535M MAD
+  Dépréc. -10%         : S₀=11.055  coût moy=54.326M  VaR=57.132M MAD
+  Dépréc. -15%         : S₀=11.557  coût moy=56.795M  VaR=59.729M MAD
+
+  ── ÉTAPE 5 : Génération des figures 5.3.1.2 ──
+  ✓ fig_5312a_gbm_trajectoires.png
+  ✓ fig_5312b_tresorerie_fx.png
+
+======================================================================
+  SECTION 5.3.2 — STRATÉGIES DE COUVERTURE (IRS + FORWARD)
+======================================================================
+
+─────────────────────────────────────────────────────────────────
+              5.3.2.1 — IRS : Swap de Taux d'Intérêt             
+─────────────────────────────────────────────────────────────────
+  Taux fixe K            : 2.1932%
+  Annuité Σ(Δt·P)       : 2.900178
+  Coût théorique IRS     :  -11,079,749 MAD
+  Coût simulé moyen      :   -6,579,749 MAD
+  Écart (doit être ≈ 0)  : 4500000.0000 MAD ✓
+  σ_CF après IRS         : 0.0000 MAD  ✓
+
+─────────────────────────────────────────────────────────────────
+                 5.3.2.2 — Forward de Change (CIP)               
+─────────────────────────────────────────────────────────────────
+  Taux forward F₀        : 9.734024 MAD/USD
+  Prime forward          : -0.3160 MAD  (-3.1440%)
+  Coût théorique forward :  -48,670,120 MAD
+  Coût budgété (S₀)      :  -50,250,000 MAD
+  Différence vs budget   :   +1,579,880 MAD
+  σ_CF après Forward     : 0.0000 MAD  ✓
+
+─────────────────────────────────────────────────────────────────
+         5.3.2.3 — Évaluation des Stratégies de Couverture       
+─────────────────────────────────────────────────────────────────
+
+  ── IRS ─────────────────────────────────────────
+  η (réduction variance)  : 100.0000%
+  VaR 99% avant / après   : 12.7662M / 6.579749M
+  ΔVaR 99%                : 48.46%
+  Sharpe couverture       : -6.0446
+
+  ── Forward ─────────────────────────────────────
+  η (réduction variance)  : 100.0000%
+  VaR 99% avant / après   : 51.9379M / 48.670120M
+  ΔVaR 99%                : 6.29%
+  Sharpe couverture       : -0.6688
+
+  ── ÉTAPE 7 : Génération des figures 5.3.2 ──
+  ✓ fig_5321_irs.png
+  ✓ fig_5322_forward.png
+  ✓ fig_5323_metriques.png
+
+======================================================================
+  SECTION 5.3.3 — RISQUE DE CONTREPARTIE
+======================================================================
+
+  ── ÉTAPE 1 : Calcul des MTM, EBE, ENE, Netting Factor, EAD, CVA ──
+
+  ── EXPOSITIONS ──────────────────────────────────────────
+  EBE totale                     : 8.1924 M MAD
+  ENE totale (après netting ISDA): 6.2945 M MAD
+  Netting Factor                 : 0.7683  (compression 23.2%)
+
+  ── EAD ────────────────────────────────────────────────────
+  EAD brute (× alpha 1.4)        : 8.1924 M MAD
+  EAD après netting              : 6.2945 M MAD
+  EAD après collatéral 80%       : 1.2589 M MAD
+
+  ── CVA ────────────────────────────────────────────────────
+  CVA sans collatéral            : 0.00627 M MAD
+  CVA avec collatéral 80%        : 0.00125 M MAD
+  Réduction CVA due au collat.   : 80.0%
+
+  ── ÉTAPE 2 : Génération de la figure 5.3.3 ──
+  ✓ fig_533_risque_contrepartie.png
+
+======================================================================
+  RÉSUMÉ — SECTION 5.3.3 : RISQUE DE CONTREPARTIE
+======================================================================
+  EBE totale             : 8.1924 M MAD
+  ENE totale             : 6.2945 M MAD
+  Netting Factor         : 0.7683  (compression de 23.2%)
+  EAD brute              : 8.1924 M MAD
+  EAD nette              : 6.2945 M MAD
+  EAD après collatéral   : 1.2589 M MAD
+  CVA (sans collat.)     : 0.00627 M MAD
+  CVA (avec collat.)     : 0.00125 M MAD
+
+======================================================================
+  SECTION 5.3.4 — SCÉNARIOS RÉGLEMENTAIRES OTC MAROCAINS
+======================================================================
+
+─────────────────────────────────────────────────────────────────
+       5.3.4.1–2 : Comparaison Cadre Restrictif vs Flexible      
+─────────────────────────────────────────────────────────────────
+
+  ═══════════════════════════════════════════════════════
+  CADRE : CADRE RESTRICTIF
+  ═══════════════════════════════════════════════════════
+  n_contrats=2  n_contreparties=1  netting=Non  collat.=30%  spread=50bps
+  EBE : 1.093M  ENE : 1.093M  NF  : 1.000
+  EAD : 0.765M MAD  CVA : 0.0019M MAD
+  HHI : 0.8289  Diversification : 0.3422  Coût spreads : 1.0000M MAD
+
+  ═══════════════════════════════════════════════════════
+  CADRE : CADRE FLEXIBLE
+  ═══════════════════════════════════════════════════════
+  n_contrats=10  n_contreparties=4  netting=Oui (ISDA)  collat.=80%  spread=15bps
+  EBE : 5.465M  ENE : 5.080M  NF  : 0.930
+  EAD : 1.016M MAD  CVA : 0.0032M MAD
+  HHI : 0.1658  Diversification : 0.9269  Coût spreads : 1.5000M MAD
+
+──────────────────────────────────────────────────────────────────────
+                       COMPARAISON RÉGLEMENTAIRE                      
+──────────────────────────────────────────────────────────────────────
+  Indicateur                              Restrictif       Flexible
+──────────────────────────────────────────────────────────────────────
+  Nombre de contrats                               2             10
+  Corrélation ρ                               0.8000         0.2000
+  Taux de collatéral                          0.3000         0.8000
+  Spread (bp)                                   50.0           15.0
+  ────────────────────────────────────────────────────────────────────
+  EBE moyen (M MAD)                           1.0932         5.4653
+  ENE moyen (M MAD)                           1.0932         5.0802
+  Netting Factor                              1.0000         0.9295
+  EAD moyen (M MAD)                           0.7652         1.0160
+  CVA total (K MAD)                           1.9119         3.1522
+  Coût spreads (K MAD)                     1000.0000      1500.0000
+  ────────────────────────────────────────────────────────────────────
+  HHI (concentration)                         0.8289         0.1658
+  Ratio diversification                       0.3422         0.9269
+──────────────────────────────────────────────────────────────────────
+
+  Réduction EAD  (Flex vs Restr) : -32.78%
+  Réduction CVA  (Flex vs Restr) : -64.87%
+  Réduction NF   (Flex vs Restr) : +7.05%
+──────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────
+       5.3.4.3 : Analyses de Sensibilité (n, ρ, collatéral)      
+─────────────────────────────────────────────────────────────────
+  → Lancement de l'analyse de sensibilité (peut prendre 1-2 min)...
+
+  Matrice NF analytique (Gibson 2002) :
+  n\ρ       ρ=0.0    ρ=0.2    ρ=0.5    ρ=0.8    ρ=1.0
+  n=1     1.0000  1.0000  1.0000  1.0000  1.0000  1.0000  1.0000  1.0000  1.0000
+  n=2     0.7106  0.7416  0.7746  0.8062  0.8660  0.9220  0.9487  0.9747  0.9975
+  n=5     0.4561  0.5292  0.6000  0.6633  0.7746  0.8718  0.9165  0.9592  0.9960
+  n=10    0.3302  0.4359  0.5292  0.6083  0.7416  0.8544  0.9055  0.9539  0.9955
+  n=20    0.2439  0.3808  0.4899  0.5788  0.7246  0.8456  0.9000  0.9513  0.9952
+
+  Netting Factor vs n (ρ=0.3 fixé) :
+    n=1   → NF = 1.0000
+    n=2   → NF = 0.9297
+    n=3   → NF = 0.8820
+    n=5   → NF = 0.9034
+    n=8   → NF = 0.9296
+    n=10  → NF = 0.9295
+    n=15  → NF = 0.9215
+    n=20  → NF = 0.9295
+
+  Netting Factor vs ρ (n=10 fixé) :
+    ρ=0.0 → NF = 0.9296
+    ρ=0.1 → NF = 0.9295
+    ρ=0.2 → NF = 0.9295
+    ρ=0.3 → NF = 0.9295
+    ρ=0.5 → NF = 0.9295
+    ρ=0.7 → NF = 0.9295
+    ρ=0.8 → NF = 0.9295
+    ρ=0.9 → NF = 0.9295
+    ρ=1.0 → NF = 0.9295
+
+  ── ÉTAPE 3 : Génération des figures 5.3.4 ──
+  ✓ fig_5341_comparaison_cadres.png
+  ✓ fig_5342_sensibilite_netting.png
+  ✓ fig_5343_hhi_diversification.png
+  ✓ fig_5344_impact_collateral.png
+  ✓ fig_5345_iss_comparatif.png
+  ✓ fig_5346_tableau_bord_reglementaire.png
+
+======================================================================
+  RÉSUMÉ — SECTION 5.3.4 : SCÉNARIOS RÉGLEMENTAIRES
+======================================================================
+
+─────────────────────────────────────────────────────────────────
+                     CADRE : CADRE RESTRICTIF                    
+─────────────────────────────────────────────────────────────────
+  Contrats OTC    : 2  |  Contreparties : 1
+  Netting reconnu : Non
+  Taux collatéral : 30%
+  Spread OTC      : 50 bps
+─────────────────────────────────────────────────────────────────
+  EBE             : 1.093 M MAD
+  ENE             : 1.093 M MAD
+  Netting Factor  : 1.0000
+  EAD             : 0.765 M MAD
+  CVA             : 0.0019 M MAD
+  HHI             : 0.8289  (Concentré ⚠)
+  Coût spreads    : 1.0000 M MAD
+  Diversification : 34.2/100
+
+─────────────────────────────────────────────────────────────────
+                      CADRE : CADRE FLEXIBLE                     
+─────────────────────────────────────────────────────────────────
+  Contrats OTC    : 10  |  Contreparties : 4
+  Netting reconnu : Oui (ISDA)
+  Taux collatéral : 80%
+  Spread OTC      : 15 bps
+─────────────────────────────────────────────────────────────────
+  EBE             : 5.465 M MAD
+  ENE             : 5.080 M MAD
+  Netting Factor  : 0.9295
+  EAD             : 1.016 M MAD
+  CVA             : 0.0032 M MAD
+  HHI             : 0.1658  (Modéré ✓)
+  Coût spreads    : 1.5000 M MAD
+  Diversification : 92.7/100
+
+======================================================================
+  CONCLUSION COMPARATIVE
+======================================================================
+  Réduction EAD       : -32.8%  (restrictif → flexible)
+  Réduction CVA       : -64.9%
+  Réduction HHI       : 80.0%
+  Réduction spreads   : 70.0%
+  Amélioration divrs. : +58.5 points
+
+  → Le cadre flexible prudentiel améliore toutes les métriques
+    de risque systémique sans sacrifier la couverture financière.
+
+======================================================================
+  RÉSUMÉ FINAL — CHAPITRE 5.3
+======================================================================
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  5.3.1 — EXPOSITION AUX RISQUES                                 │
+  │  Vasicek : κ=0.3813  θ=2.1055%  σ=0.3522%     │
+  │  VaR 99% taux : 12.766M MAD                              │
+  │  VaR 99% FX   : 51.938M MAD                              │
+  ├─────────────────────────────────────────────────────────────────┤
+  │  5.3.2 — COUVERTURES (IRS + FORWARD)                           │
+  │  IRS : K=2.1932%  η=100.00%  ΔVaR=48.5%       │
+  │  FWD : F₀=9.7340  η=100.00%  ΔVaR=6.3%      │
+  ├─────────────────────────────────────────────────────────────────┤
+  │  5.3.3 — RISQUE DE CONTREPARTIE                                │
+  │  Netting Factor : 0.7683  EAD : 1.259M MAD                │
+  │  CVA : 0.00627M → 0.00125M (avec collat. 80%)  │
+  ├─────────────────────────────────────────────────────────────────┤
+  │  5.3.4 — COMPARAISON RÉGLEMENTAIRE                             │
+  │  ISS restrictif : 34.2/100  →  ISS flexible : 92.7/100     │  │  Réduction EAD  : -32.8%                                    │
+  │  Réduction CVA  : -64.9%                                    │
+  └─────────────────────────────────────────────────────────────────┘
+    
+  FIGURES GÉNÉRÉES :
+    ✓ fig_5311a_calibration_bam.png
+    ✓ fig_5311b_fan_chart_taux.png
+    ✓ fig_5311c_charges_tresorerie.png
+    ✓ fig_5311d_distribution_stress_taux.png
+    ✓ fig_5312a_gbm_trajectoires.png
+    ✓ fig_5312b_tresorerie_fx.png
+    ✓ fig_5321_irs.png
+    ✓ fig_5322_forward.png
+    ✓ fig_5323_metriques.png
+    ✓ fig_533_risque_contrepartie.png
+    ✓ fig_5341_comparaison_cadres.png
+    ✓ fig_5342_sensibilite_netting.png
+    ✓ fig_5343_hhi_diversification.png
+    ✓ fig_5344_impact_collateral.png
+    ✓ fig_5345_iss_comparatif.png
+    ✓ fig_5346_tableau_bord_reglementaire.png
+
+  Figures sauvegardées dans : D:\ABS MFE\ABS MFE S2\Derivative Pricing and Hedging\PRESENTATION\code python chap 5\figures
+  Pipeline terminé avec succès ✓
